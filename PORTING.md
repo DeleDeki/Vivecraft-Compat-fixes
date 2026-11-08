@@ -1,3 +1,13 @@
+# Porting status (8 November 2026)
+
+A Java-source reconstruction layer now exists for all 43 classes that were added or changed in tested v3.4.3. Its sources were delivered as `vivecraftcompat-v3.4.3-java-source-overlay.zip` in the project chat and must be extracted and pushed into this repository by the repository owner. The layer's Java ASM emitters compile with JDK 21 and regenerate class files without requiring the historic unofficial 1.6.0 binary. All 43 regenerated classes were compared to the tested v3.4.3 using ASM semantic traces and matched.
+
+**Important distinction:** ASM emitters are executable low-level Java source, not clean, readable original source. The full conversion of v3.4.3 systems into high-level, idiomatic Java remains the next task. The GitHub Actions workflow `decompile-v343.yml` can produce a Vineflower decompilation artifact after the source ZIP is pushed. The Java source-based mod JAR still needs a real Minecraft VR startup and functional test.
+
+The older reconstruction notes below describe the state before the ASM source layer was developed.
+
+---
+
 # v3.4.3 source porting status
 
 This repository contains the **original MIT-licensed ViveCraftCompat 1.5.1 Gradle source** (unchanged in `src/`) plus reconstructed source references in `porting/reference-java/`.
