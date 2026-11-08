@@ -1,5 +1,14 @@
-// Recuria VR v3.4.3: complete Java 21 ASM-source reconstruction of modified classes.
-// The source is in src/v343-asm/java and does not require the historical 1.6.0 JAR.
+// v3.4.3 Java ASM source layer. This build NEVER reads the unofficial 1.6 JAR.
+// The original approach wrote into compileJava's output folder after compilation;
+// Gradle could omit those files from jar. The generated classes are now merged
+// explicitly into the finished JAR, with strict checks of every registered mixin.
+import groovy.json.JsonSlurper
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
+
 sourceSets {
     v343Emitter {
         java.srcDir 'src/v343-asm/java'
@@ -10,19 +19,81 @@ tasks.named('compileV343EmitterJava', JavaCompile) {
     options.encoding = 'UTF-8'
     options.compilerArgs.addAll(['--add-exports', 'java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED'])
 }
+
+def v343ClassList = file('src/v343-asm/classes.list')
+def v343ClassesDir = layout.buildDirectory.dir('generated/v343-classes')
 tasks.register('overlayV343JavaSource', JavaExec) {
     group = 'build'
-    description = 'Generate v3.4.3 classes from Java ASM source (no binary input JAR).'
-    dependsOn tasks.named('compileJava'), tasks.named('compileV343EmitterJava')
+    description = 'Generate custom v3.4.3 classes from Java source'
+    dependsOn tasks.named('compileV343EmitterJava')
     classpath = sourceSets.v343Emitter.runtimeClasspath
     mainClass.set('V343ClassEmitter')
     jvmArgs('--add-exports=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED')
-    args file('src/v343-asm/classes.list').absolutePath,
-         layout.buildDirectory.dir('classes/java/main').get().asFile.absolutePath
+    args v343ClassList.absolutePath, v343ClassesDir.get().asFile.absolutePath
+    outputs.dir(v343ClassesDir)
     outputs.upToDateWhen { false }
 }
 tasks.named('jar', Jar) {
     dependsOn tasks.named('overlayV343JavaSource')
+    outputs.upToDateWhen { false }
+    doLast {
+        def names = v343ClassList.readLines('UTF-8').collect { it.trim() }.findAll { it && !it.startsWith('#') }
+        if (names.size() != 43 || names.toSet().size() != 43)
+            throw new GradleException("Expected 43 unique v3.4.3 classes, got ${names.size()}")
+        def replacements = [:]
+        names.each { cls ->
+            def f = new File(v343ClassesDir.get().asFile, cls + '.class')
+            if (!f.isFile()) throw new GradleException('Emitter missing class: ' + cls)
+            replacements[cls + '.class'] = Files.readAllBytes(f.toPath())
+        }
+        def jarFile = archiveFile.get().asFile
+        def tmp = Files.createTempFile(jarFile.parentFile.toPath(), 'v343-', '.jar')
+        try {
+            new ZipFile(jarFile).withCloseable { old ->
+                new ZipOutputStream(Files.newOutputStream(tmp)).withCloseable { zout ->
+                    def seen = [] as Set
+                    def entries = old.entries()
+                    while (entries.hasMoreElements()) {
+                        def e = entries.nextElement()
+                        if (e.isDirectory() || replacements.containsKey(e.name)) continue
+                        if (!seen.add(e.name)) throw new GradleException('Duplicate JAR entry: ' + e.name)
+                        def target = new ZipEntry(e.name)
+                        if (e.time > 0L) target.setTime(e.time)
+                        zout.putNextEntry(target)
+                        old.getInputStream(e).withCloseable { input -> input.transferTo(zout) }
+                        zout.closeEntry()
+                    }
+                    replacements.each { name, bytes ->
+                        zout.putNextEntry(new ZipEntry(name))
+                        zout.write(bytes)
+                        zout.closeEntry()
+                    }
+                }
+            }
+            Files.move(tmp, jarFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(tmp)
+        }
+        new ZipFile(jarFile).withCloseable { result ->
+            names.each { cls ->
+                if (result.getEntry(cls + '.class') == null)
+                    throw new GradleException('Final JAR missing custom class: ' + cls)
+            }
+            def mixinResource = result.getEntry('vivecraftcompat.mixins.json')
+            if (mixinResource == null) throw new GradleException('Final JAR missing mixin config')
+            def config = new JsonSlurper().parseText(result.getInputStream(mixinResource).getText('UTF-8'))
+            def activeMixins = []
+            ['mixins','client','server'].each { kind -> activeMixins.addAll(config[kind] ?: []) }
+            activeMixins.each { cls ->
+                def classPath = (config['package'] + '.' + cls).replace('.', '/') + '.class'
+                if (result.getEntry(classPath) == null)
+                    throw new GradleException('Missing registered mixin in JAR: ' + classPath)
+            }
+            if (result.getEntry('META-INF/neoforge.mods.toml') == null)
+                throw new GradleException('Missing NeoForge metadata')
+            println "VERIFIED: 43 custom classes and ${activeMixins.size()} mixins in " + jarFile.name
+        }
+    }
 }
 tasks.named('sourcesJar', Jar) {
     from('src/v343-asm/java') { into('v343-asm-java-source') }
