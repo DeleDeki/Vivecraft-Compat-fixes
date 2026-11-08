@@ -202,7 +202,7 @@ tasks.withType(ProcessResources).configureEach {
     ]
     inputs.properties replaceProperties
 
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+    filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
         expand replaceProperties + [project: project]
     }
 }
@@ -263,6 +263,10 @@ tasks.register('buildTestedV343', Exec) {
 }
 
 // Enable source-only v3.4.3 reconstruction after the Java overlay is imported.
+// Never ship the custom mixin configuration without the Java source layer.
 if (file('src/v343-asm/classes.list').isFile()) {
     apply from: 'v343-source.gradle'
+} else if (file('src/main/resources/vivecraftcompat.mixins.json').isFile() &&
+           file('src/main/resources/vivecraftcompat.mixins.json').getText('UTF-8').contains('AeronauticsLevititeCatalyzerHandlerMixin')) {
+    throw new GradleException('Custom v3.4.3 mixin config found but src/v343-asm/classes.list is missing. Extract the full Java-source overlay before building.')
 }
