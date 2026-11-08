@@ -1,42 +1,41 @@
-# Porting status (8 November 2026)
+# Source layout and reconstruction status
 
-A Java-source reconstruction layer now exists for all 43 classes that were added or changed in tested v3.4.3. Its sources were delivered as `vivecraftcompat-v3.4.3-java-source-overlay.zip` in the project chat and must be extracted and pushed into this repository by the repository owner. The layer's Java ASM emitters compile with JDK 21 and regenerate class files without requiring the historic unofficial 1.6.0 binary. All 43 regenerated classes were compared to the tested v3.4.3 using ASM semantic traces and matched.
+**Current status (8 November 2026):** v3.4.3 has been reconstructed as a **rebuildable Java 21 project**, the reconstructed sources are committed in this repository, GitHub Actions has produced a successful build, and a locally source-built JAR was **tested in Minecraft VR**. Create seat rotation and typewriter operation worked in that test.
 
-**Important distinction:** ASM emitters are executable low-level Java source, not clean, readable original source. The full conversion of v3.4.3 systems into high-level, idiomatic Java remains the next task. The GitHub Actions workflow `decompile-v343.yml` can produce a Vineflower decompilation artifact after the source ZIP is pushed. The Java source-based mod JAR still needs a real Minecraft VR startup and functional test.
+## What builds today
 
-The older reconstruction notes below describe the state before the ASM source layer was developed.
+The Gradle project starts with the upstream ViveCraftCompat 1.5.1 source in `src/main/java`. A Java 21 ASM emitter layer under `src/v343-asm/java` generates the **43 added or modified v3.4.3 class files**. `v343-source.gradle` merges those classes into the final JAR, replacing matching upstream classes, and verifies that every registered mixin class exists.
 
----
+The mixin list is in `src/main/resources/vivecraftcompat.mixins.json`; the generated JAR has **30 registered mixins**. A prior Gradle packaging mistake omitted some generated mixins, causing an Aeronautics mixin startup crash. Packaging now has strict missing-class checks, and the corrected locally built JAR has launched successfully in VR.
 
-# v3.4.3 source porting status
+### Build
 
-This repository contains the **original MIT-licensed ViveCraftCompat 1.5.1 Gradle source** (unchanged in `src/`) plus reconstructed source references in `porting/reference-java/`.
+With JDK 21:
 
-## Important: build status
+```bash
+./gradlew --no-build-cache clean build
+```
 
-`./gradlew build` (or `gradlew.bat build` on Windows with Java 21) is intended to build **the upstream 1.5.1 source foundation**, **NOT** the user's working custom v3.4.3 JAR. The Gradle build has **not** been executed successfully in this environment (network/dependency resolution is unavailable). The custom 1.6.0 and v3.4.3 source port remains incomplete.
+On Windows use `gradlew.bat`. Find the main mod JAR in `build/libs` and verify that Gradle printed `VERIFIED: 43 custom classes and 30 mixins`.
 
-Reference Java files under `porting/reference-java` intentionally stay out of `src/main/java` because they depend on code not yet ported. Adding them to the active build early may break compilation.
+## Important source distinction
 
-## Where the working build came from
+The 43 Java files in `src/v343-asm/java/asm/` are **bytecode emitters**. They generate JVM class files and are valid, maintainable Java build inputs, but they are **not** reconstructed high-level implementation source in normal mod-development style.
 
-The user supplied unofficial `vivecraftcompat-1.21-1.6.0.jar` (SHA-256 `bbcf66475d4bd7575036e5f2ebe81bca6b26aaa1d29f6ba0370e9d0ae4dbb82f`).
-The user's tested `vivecraftcompat-fixed-v3.4.3-typewriter-controls.jar` has SHA-256 `3917875423348ca11c559ef5f2a6206f1610a6134b654418e347b0d49356f3c8`. It was assembled by bytecode patches, and is not itself a source-built artifact. The earlier source/rebuild ZIP in the ChatGPT conversation contains a reproducible patch script and disassemblies. Please retain your original JAR and that ZIP privately as references.
+`porting/reference-java/` contains a small set of readable reconstruction references. These are **not** used to produce the release JAR. The optional `.github/workflows/decompile-v343.yml` workflow can create additional readable decompilation references for future refactoring.
 
-## Source work remaining to reproduce v3.4.3
+The source build **does not need the unofficial 1.6.0 JAR**. The older `buildTestedV343` task in `build.gradle` and `tools/rebuild-v343.py` are legacy tools for historical binary comparisons; they are not the regular build path.
 
-1. Reconstruct the unofficial 1.6.0 Java classes not present in official 1.5.1, especially `simulated/SableVRBridge`, `simulated/SimulatedVRInputBridge`, `create/CreateSeatVRBridge`, `create/CreateSchematicVRInputBridge`, and related simulated/VR pose mixins.
-2. Port the **aiming fix**: the custom `SimulatedGameRendererMixin` is deliberately not registered in v3.4.3. Avoid overriding Vivecraft's normal entity targeting on ordinary ground.
-3. Port the Create train bridge, the native-seat-rotation suppression mixin, and vehicle resolver while avoiding reversed/doubled camera rotation.
-4. Port typewriter input handling including VR signal dispatch before movement suppression, keyboard-opening key exception, right-click exit, vanilla/modded key mapping suppression, and flatscreen input.
-5. Port the rendering fixes, including the removed extra VR keyboard depth clear. Retain the 1.5.1 official compatibility features.
-6. Update Gradle dependencies for the exact runtime APIs: Minecraft 1.21.1, NeoForge 21.1.x, Create 6.0.10, Vivecraft 1.3.15, Sable 2.0.6, Create Aeronautics/Simulated 1.3.2 as appropriate, plus the other integration APIs.
-7. Verify `gradlew.bat clean build` with JDK 21, inspect the output JAR mixin registration, test mod startup, VR train yaw, Sable 3D orientation, aiming, typewriter frequencies/hotkeys, right-click exit, and flat-screen typewriters.
+## Test coverage
 
-## Rights and provenance
+**Confirmed:** The reconstructed source-built v3.4.3 JAR launched in VR, and the tester confirmed Create seat rotation and typewriter operation work.
 
-Upstream original source: https://github.com/tom5454/ViveCraftCompat (MIT; copyright retained in LICENSE). The source/rights for the additional unofficial 1.6.0 changes have **not** been established. Do not claim those additions were written by the original project authors, and confirm authorization before publicly redistributing reconstructed unofficial contributions.
+**Not confirmed by this test:** Every other optional compatibility integration, every mix of mod versions, and Vivecraft's long-press-Y virtual keyboard behavior. Normal aiming should continue to be checked on the ground and while riding moving contraptions.
 
-## Suggested workflow
+## Origin and attribution
 
-Develop the port on a separate branch; require a passing Java 21 Gradle build and Minecraft startup test before merging. Keep the existing known-working v3.4.3 binary for regression comparison rather than substituting an untested source build.
+Original project: [tom5454/ViveCraftCompat](https://github.com/tom5454/ViveCraftCompat), MIT-licensed; original notices are preserved in `LICENSE`. This is an unofficial fork made available with source so its modifications can be inspected and rebuilt. It does not attribute the undocumented historical 1.6 binary changes to the original author or to the Recuria community.
+
+## Next technical improvements
+
+Convert ASM emitters into readable Java implementations one component at a time; compare behavior to the tested v3.4.3 release; keep regression tests for seats, moving sublevels, normal aiming, typewriter input/frequencies and flatscreen controls.
