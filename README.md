@@ -3,6 +3,14 @@
 Unofficial Minecraft 1.21.1 / NeoForge compatibility work based on the [original ViveCraftCompat project](https://github.com/tom5454/ViveCraftCompat). Original copyright and MIT license are retained.
 
 
+## Startup crash fix for Java-source builds (8 November 2026)
+
+The first Gradle reconstruction build could produce a JAR without some of the 43 generated classes, causing `InvalidMixinException: AeronauticsLevititeCatalyzerHandlerMixin was not found`. The corrected `v343-source.gradle` now explicitly merges all 43 classes into the finished JAR and verifies every registered mixin. If any is missing, Gradle **fails the build** rather than producing a broken mod.
+
+To update your existing clone, run `git pull` followed by `gradlew.bat --no-build-cache clean build`. Keep `src/v343-asm/` in your local project. Look for `VERIFIED: 43 custom classes and 30 mixins` in Gradle's output.
+
+The Gradle build script also expands `META-INF/neoforge.mods.toml`, correcting the custom mod's displayed version from `0.0NONE` to `3.4.3` when `mod_version=3.4.3` in `gradle.properties`. This is a **packaging fix**, not a gameplay-code change; in-game VR testing is still required.
+
 ## Java-only v3.4.3 build (NEW)
 
 A Java 21 source overlay has been reconstructed and verified against all 43 new/modified class structures in the user-tested v3.4.3. The full overlay ZIP was delivered in the project conversation; its Java files must be extracted and committed locally.
