@@ -2,6 +2,23 @@
 
 Unofficial Minecraft 1.21.1 / NeoForge compatibility work based on the [original ViveCraftCompat project](https://github.com/tom5454/ViveCraftCompat). Original copyright and MIT license are retained.
 
+
+## Java-only v3.4.3 build (NEW)
+
+A Java 21 source overlay has been reconstructed and verified against all 43 new/modified class structures in the user-tested v3.4.3. The full overlay ZIP was delivered in the project conversation; its Java files must be extracted and committed locally.
+
+The reconstruction uses **Java ASM emitter source** instead of original high-level Java for the 43 patched classes. It no longer depends on an unofficial 1.6.0 JAR or a binary patch kit at build time, but it is not yet idiomatic, human-readable source for those systems.
+
+1. In your cloned repository, extract `vivecraftcompat-v3.4.3-java-source-overlay.zip` over the repo root.
+2. In `gradle.properties`, change `mod_version=1.5.1` to `mod_version=3.4.3`.
+3. Build using Java 21: `gradlew.bat clean build` on Windows.
+4. Commit `src/v343-asm/`, `src/main/resources/vivecraftcompat.mixins.json`, `src/main/resources/assets/vivecraftcompat/lang/en_us.json`, and the version change, then push.
+5. GitHub Actions → **Build Vivecraft Compat v3.4.3 from Java source** → view artifacts, once the source files are pushed.
+
+The Gradle build automatically activates `v343-source.gradle` when `src/v343-asm/classes.list` exists. Output is under `build/libs/`. The source JAR includes the original upstream Java and the reconstructed emitter Java.
+
+The local Java 21 source-only emitter compiled successfully, generated 43 modified classes, matched all 43 original ASM structural traces and produced an archive with the expected 68 classes. **Minecraft VR startup has not yet been tested with the rebuilt artifact**, and GitHub Actions will only be able to build it after the Java source files are committed.
+
 ## Two different builds
 
 **Upstream source build:** `gradlew.bat clean build` compiles the editable official 1.5.1 Java source in `src/main/java`. This produces **1.5.1, without the Recuria VR changes**. The uploaded `vivecraftcompat-1.21-1.5.1-sources.jar` is simply the Gradle source archive.
