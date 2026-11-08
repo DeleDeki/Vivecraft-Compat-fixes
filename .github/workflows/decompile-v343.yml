@@ -1,0 +1,36 @@
+name: Generate readable Java reference from v3.4.3
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  decompile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Check source overlay
+        run: test -f src/v343-asm/classes.list
+      - name: Build current source-based JAR
+        run: bash ./gradlew --no-daemon clean build
+      - name: Download Vineflower 1.12.0
+        run: |
+          curl -fsSL https://repo.maven.apache.org/maven2/org/vineflower/vineflower/1.12.0/vineflower-1.12.0.jar -o vineflower.jar
+      - name: Decompile bytecode to readable Java
+        shell: bash
+        run: |
+          set -euo pipefail
+          MODJAR=$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*sources*.jar' | head -1)
+          mkdir -p build/decompiled-v343
+          java -jar vineflower.jar -dgs=1 "$MODJAR" build/decompiled-v343
+          find build/decompiled-v343 -type f | head -20
+      - name: Upload decompiled Java reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: v343-readable-java-decompilation
+          path: build/decompiled-v343/
+          retention-days: 14
