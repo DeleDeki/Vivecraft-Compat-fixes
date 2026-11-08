@@ -240,3 +240,24 @@ publishing {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
 }
+
+// Tested custom v3.4.3 rebuild; separate from the upstream Java-source build.
+// Does NOT compile the unofficial 1.6/v3.4.3 additions from Java source.
+tasks.register('buildTestedV343', Exec) {
+    group = 'build'
+    description = 'Rebuild tested v3.4.3 from local 1.6.0 JAR and patch kit ZIP.'
+    def baseJar = providers.gradleProperty('vccBaseJar')
+        .orElse('local-input/vivecraftcompat-1.21-1.6.0.jar')
+    def patchKit = providers.gradleProperty('vccPatchKit')
+        .orElse('local-input/vivecraftcompat-v3.4.3-source-and-rebuild.zip')
+    inputs.file(baseJar)
+    inputs.file(patchKit)
+    outputs.file(layout.buildDirectory.file('libs/vivecraftcompat-fixed-v3.4.3.jar'))
+    doFirst {
+        if (!file(baseJar.get()).isFile() || !file(patchKit.get()).isFile()) {
+            throw new GradleException('Missing inputs: put the original 1.6.0 JAR and patch ZIP in local-input/. See README.')
+        }
+    }
+    commandLine 'python', 'tools/rebuild-v343.py', baseJar.get(), patchKit.get(),
+        '--output', layout.buildDirectory.file('libs/vivecraftcompat-fixed-v3.4.3.jar').get().asFile.absolutePath
+}
