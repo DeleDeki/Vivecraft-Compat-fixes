@@ -1,0 +1,30 @@
+// Recuria VR v3.4.3: complete Java 21 ASM-source reconstruction of modified classes.
+// The source is in src/v343-asm/java and does not require the historical 1.6.0 JAR.
+sourceSets {
+    v343Emitter {
+        java.srcDir 'src/v343-asm/java'
+        resources.srcDirs = []
+    }
+}
+tasks.named('compileV343EmitterJava', JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['--add-exports', 'java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED'])
+}
+tasks.register('overlayV343JavaSource', JavaExec) {
+    group = 'build'
+    description = 'Generate v3.4.3 classes from Java ASM source (no binary input JAR).'
+    dependsOn tasks.named('compileJava'), tasks.named('compileV343EmitterJava')
+    classpath = sourceSets.v343Emitter.runtimeClasspath
+    mainClass.set('V343ClassEmitter')
+    jvmArgs('--add-exports=java.base/jdk.internal.org.objectweb.asm=ALL-UNNAMED')
+    args file('src/v343-asm/classes.list').absolutePath,
+         layout.buildDirectory.dir('classes/java/main').get().asFile.absolutePath
+    outputs.upToDateWhen { false }
+}
+tasks.named('jar', Jar) {
+    dependsOn tasks.named('overlayV343JavaSource')
+}
+tasks.named('sourcesJar', Jar) {
+    from('src/v343-asm/java') { into('v343-asm-java-source') }
+    from('src/v343-asm/classes.list') { into('v343-asm-java-source') }
+}
