@@ -1,0 +1,33 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.tom.vivecraftcompat.mixin",
+  "plugin": "com.tom.vivecraftcompat.mixinplugin.VCCMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+  ],
+  "client": [
+	  "compat.jade.JadeClientPlatformProxyMixin",
+	  
+	  "compat.journeymap.JMNeoForgeHudOverlayEventsMixin",
+	  "compat.journeymap.JMEffectMixin",
+	  
+	  "compat.theoneprobe.ClientSetupMixin",
+	  
+	  "compat.create.CreateBigOutlinesMixin",
+	  "compat.create.CreateTrackBlockOutlineMixin",
+	  "compat.create.CreateRaycastHelperMixin",
+	  "compat.create.CreateValueSettingsScreenMixin",
+	  "compat.create.CreateContraptionControlsMovingInteractionMixin",
+	  
+	  "MinecraftMixin",
+	  "MinecraftMixin_OverlayRender",
+	  "VRRendererMixin",
+	  "VREffectsHelperMixin",
+	  "MCVRMixin",
+	  "InputSimulatorMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
