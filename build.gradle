@@ -261,3 +261,8 @@ tasks.register('buildTestedV343', Exec) {
     commandLine 'python', 'tools/rebuild-v343.py', baseJar.get(), patchKit.get(),
         '--output', layout.buildDirectory.file('libs/vivecraftcompat-fixed-v3.4.3.jar').get().asFile.absolutePath
 }
+
+// Enable source-only v3.4.3 reconstruction after the Java overlay is imported.
+if (file('src/v343-asm/classes.list').isFile()) {
+    apply from: 'v343-source.gradle'
+}
